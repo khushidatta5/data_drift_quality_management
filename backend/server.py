@@ -85,17 +85,16 @@ async def upload_dataset(file: UploadFile = File(...)):
         contents = await file.read()
         file_size = len(contents)
         
-        # Process with PySpark
+        # Process with pandas
         df_pandas = pd.read_csv(io.BytesIO(contents))
-        spark_df = spark_processor.pandas_to_spark(df_pandas)
         
         # Get basic statistics
-        rows = spark_df.count()
-        columns = len(spark_df.columns)
-        column_names = spark_df.columns
+        rows = len(df_pandas)
+        columns = len(df_pandas.columns)
+        column_names = df_pandas.columns.tolist()
         
         # Get data summary
-        summary_stats = spark_processor.get_basic_stats(spark_df)
+        summary_stats = spark_processor.get_basic_stats(df_pandas)
         
         # Create dataset object
         dataset = Dataset(
