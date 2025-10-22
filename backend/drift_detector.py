@@ -1,8 +1,7 @@
-from pyspark.sql import DataFrame
-from typing import Dict, Any
-import logging
 import pandas as pd
 import numpy as np
+from typing import Dict, Any
+import logging
 from scipy import stats
 
 logger = logging.getLogger(__name__)
@@ -12,7 +11,7 @@ class DriftDetector:
         """Initialize drift detector with significance threshold"""
         self.threshold = threshold
     
-    def detect_drift(self, reference_df: DataFrame, target_df: DataFrame) -> Dict[str, Any]:
+    def detect_drift(self, reference_df: pd.DataFrame, target_df: pd.DataFrame) -> Dict[str, Any]:
         """Detect drift between reference and target datasets"""
         try:
             column_drift = {}
@@ -23,9 +22,9 @@ class DriftDetector:
             
             for column in common_cols:
                 # Determine column type
-                col_type = str(reference_df.schema[column].dataType)
+                is_numeric = pd.api.types.is_numeric_dtype(reference_df[column])
                 
-                if col_type in ['IntegerType', 'LongType', 'FloatType', 'DoubleType', 'DecimalType']:
+                if is_numeric:
                     # Numerical column - use KS test
                     drift_result = self._ks_test(reference_df, target_df, column)
                 else:
@@ -58,12 +57,12 @@ class DriftDetector:
                 'test_results': {'error': str(e)}
             }
     
-    def _ks_test(self, ref_df: DataFrame, target_df: DataFrame, column: str) -> Dict[str, Any]:
+    def _ks_test(self, ref_df: pd.DataFrame, target_df: pd.DataFrame, column: str) -> Dict[str, Any]:
         """Kolmogorov-Smirnov test for numerical columns"""
         try:
-            # Convert to pandas for statistical testing
-            ref_data = ref_df.select(column).toPandas()[column].dropna()
-            target_data = target_df.select(column).toPandas()[column].dropna()
+            # Get data
+            ref_data = ref_df[column].dropna()
+            target_data = target_df[column].dropna()
             
             # Perform KS test
             ks_statistic, p_value = stats.ks_2samp(ref_data, target_data)
@@ -95,15 +94,18 @@ class DriftDetector:
                 'error': str(e)
             }
     
-    def _chi_square_test(self, ref_df: DataFrame, target_df: DataFrame, column: str) -> Dict[str, Any]:
+    def _chi_square_test(self, ref_df: pd.DataFrame, target_df: pd.DataFrame, column: str) -> Dict[str, Any]:
         """Chi-square test for categorical columns"""
         try:
             # Get value counts
-            ref_counts = ref_df.groupBy(column).count().toPandas()
-            target_counts = target_df.groupBy(column).count().toPandas()
+            ref_counts = ref_df[column].value_counts().reset_index()
+            ref_counts.columns = [column, 'count_ref']
+            
+            target_counts = target_df[column].value_counts().reset_index()
+            target_counts.columns = [column, 'count_target']
             
             # Merge on column values
-            merged = pd.merge(ref_counts, target_counts, on=column, how='outer', suffixes=('_ref', '_target')).fillna(0)
+            merged = pd.merge(ref_counts, target_counts, on=column, how='outer').fillna(0)
             
             # Perform Chi-square test
             chi2_statistic, p_value = stats.chisquare(merged['count_target'], merged['count_ref'])
