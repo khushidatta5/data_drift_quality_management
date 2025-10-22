@@ -187,11 +187,8 @@ async def run_drift_check(reference_id: str, target_id: str):
         ref_df = pd.read_csv(io.StringIO(ref_doc.get('csv_data')))
         target_df = pd.read_csv(io.StringIO(target_doc.get('csv_data')))
         
-        ref_spark = spark_processor.pandas_to_spark(ref_df)
-        target_spark = spark_processor.pandas_to_spark(target_df)
-        
         # Run drift detection
-        drift_results = drift_detector.detect_drift(ref_spark, target_spark)
+        drift_results = drift_detector.detect_drift(ref_df, target_df)
         
         # Create drift report
         report = DriftReport(
