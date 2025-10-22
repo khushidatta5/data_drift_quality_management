@@ -140,15 +140,14 @@ async def run_quality_check(dataset_id: str):
         
         # Load CSV data
         csv_data = dataset_doc.get('csv_data')
-        df_pandas = pd.read_csv(io.StringIO(csv_data))
-        spark_df = spark_processor.pandas_to_spark(df_pandas)
+        df = pd.read_csv(io.StringIO(csv_data))
         
         # Run quality checks
-        missing_values = quality_checker.check_missing_values(spark_df)
-        duplicates = quality_checker.check_duplicates(spark_df)
-        outliers = quality_checker.detect_outliers(spark_df)
-        data_types = quality_checker.check_data_types(spark_df)
-        statistics = quality_checker.get_statistics(spark_df)
+        missing_values = quality_checker.check_missing_values(df)
+        duplicates = quality_checker.check_duplicates(df)
+        outliers = quality_checker.detect_outliers(df)
+        data_types = quality_checker.check_data_types(df)
+        statistics = quality_checker.get_statistics(df)
         
         # Create quality report
         report = QualityReport(
