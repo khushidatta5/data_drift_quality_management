@@ -1,5 +1,3 @@
-from pyspark.sql import SparkSession
-from pyspark.sql import DataFrame
 import pandas as pd
 from typing import Dict, Any
 import logging
@@ -7,50 +5,34 @@ import logging
 logger = logging.getLogger(__name__)
 
 class SparkDataProcessor:
+    """Data processor using pandas for CSV processing"""
+    
     def __init__(self):
-        """Initialize Spark session"""
-        self.spark = SparkSession.builder \
-            .appName("DataDriftQualitySystem") \
-            .config("spark.driver.memory", "2g") \
-            .config("spark.executor.memory", "2g") \
-            .getOrCreate()
-        
-        # Set log level to reduce noise
-        self.spark.sparkContext.setLogLevel("WARN")
-        logger.info("Spark session initialized successfully")
+        """Initialize data processor"""
+        logger.info("Data processor initialized (using pandas)")
     
-    def pandas_to_spark(self, df_pandas: pd.DataFrame) -> DataFrame:
-        """Convert pandas DataFrame to Spark DataFrame"""
-        try:
-            spark_df = self.spark.createDataFrame(df_pandas)
-            return spark_df
-        except Exception as e:
-            logger.error(f"Error converting pandas to spark: {str(e)}")
-            raise
+    def pandas_to_spark(self, df_pandas: pd.DataFrame) -> pd.DataFrame:
+        """Return pandas DataFrame (compatibility method)"""
+        return df_pandas
     
-    def spark_to_pandas(self, spark_df: DataFrame) -> pd.DataFrame:
-        """Convert Spark DataFrame to pandas DataFrame"""
-        try:
-            return spark_df.toPandas()
-        except Exception as e:
-            logger.error(f"Error converting spark to pandas: {str(e)}")
-            raise
+    def spark_to_pandas(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Return pandas DataFrame (compatibility method)"""
+        return df
     
-    def get_basic_stats(self, df: DataFrame) -> Dict[str, Any]:
-        """Get basic statistics for a Spark DataFrame"""
+    def get_basic_stats(self, df: pd.DataFrame) -> Dict[str, Any]:
+        """Get basic statistics for a pandas DataFrame"""
         try:
             stats = {}
             
             # Get column types
-            stats['column_types'] = {field.name: str(field.dataType) for field in df.schema.fields}
+            stats['column_types'] = {col: str(dtype) for col, dtype in df.dtypes.items()}
             
             # Get numeric columns
-            numeric_cols = [field.name for field in df.schema.fields 
-                          if str(field.dataType) in ['IntegerType', 'LongType', 'FloatType', 'DoubleType']]
+            numeric_cols = df.select_dtypes(include=['int64', 'float64']).columns.tolist()
             
             if numeric_cols:
                 # Get summary statistics for numeric columns
-                summary = df.select(numeric_cols).summary().toPandas()
+                summary = df[numeric_cols].describe()
                 stats['numeric_summary'] = summary.to_dict()
             
             return stats
@@ -58,11 +40,11 @@ class SparkDataProcessor:
             logger.error(f"Error getting basic stats: {str(e)}")
             return {}
     
-    def clean_data(self, df: DataFrame) -> DataFrame:
+    def clean_data(self, df: pd.DataFrame) -> pd.DataFrame:
         """Basic data cleaning operations"""
         try:
             # Remove duplicate rows
-            df_clean = df.dropDuplicates()
+            df_clean = df.drop_duplicates()
             
             return df_clean
         except Exception as e:
@@ -70,7 +52,5 @@ class SparkDataProcessor:
             return df
     
     def stop(self):
-        """Stop Spark session"""
-        if self.spark:
-            self.spark.stop()
-            logger.info("Spark session stopped")
+        """Stop processor (compatibility method)"""
+        logger.info("Data processor stopped")
